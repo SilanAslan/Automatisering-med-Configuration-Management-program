@@ -1,0 +1,15 @@
+---
+- name: Install Mariadb
+  hosts: db
+  become: true
+  tasks:
+     - name: Ensure MariaDB-server is installed
+       ansible.builtin.package:
+         name: mariadb-server
+         state: present
+
+     - name: Ensure MariaDB-server is started
+       ansible.builtin.service:
+         name: mariadb
+         enabled: true
+         state: started

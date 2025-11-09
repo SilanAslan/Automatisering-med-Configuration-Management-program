@@ -1,0 +1,16 @@
+---
+- name: Create IT department user accounts
+  hosts: web
+  become: true
+
+  tasks:
+   - name: Create IT department users and add to groups
+     ansible.builtin.user:
+       name: "{{ item.name }}"
+       groups: "{{ item.groups }}"
+       state: present
+     loop:
+       - { name: 'alovelace', groups: 'wheel,video,audio' }
+       - { name: 'aturing', groups: 'tape' }
+       - { name: 'edijkstra', groups: 'tcpdump' }
+       - { name: 'ghopper', groups: 'wheel,audio' }

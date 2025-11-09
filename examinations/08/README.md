@@ -31,3 +31,72 @@ to authenticate as root:
 
 # Documentation and Examples
 https://docs.ansible.com/ansible/latest/collections/community/mysql/index.html
+
+## Svar
+
+08-mariadb-config.yml
+```
+---
+- name: Install Mariadb
+  hosts: db
+  become: true
+  tasks:
+     - name: Ensure MariaDB-server is installed
+       ansible.builtin.package:
+         name: mariadb-server
+         state: present
+
+     - name: Ensure python3-PYMySQL is present on the db-server
+       ansible.builtin.package:
+         name: python3-PyMySQL
+         state: present
+
+     - name: Create a new database with name webappdb
+       community.mysql.mysql_db:
+         name: webappdb
+         state: present
+         login_unix_socket: /var/lib/mysql/mysql.sock
+
+     - name: Create a new user with name webappuser
+       community.mysql.mysql_user:
+         name: webappuser
+         password: 'secretpassword'
+         priv: 'webappdb.*:ALL'
+         state: present
+         login_unix_socket: /var/lib/mysql/mysql.sock
+
+     - name: Ensure MariaDB-server is started
+       ansible.builtin.service:
+         name: mariadb
+         enabled: true
+         state: started
+```
+Output:
+```
+shilan@shilan-Precision-Tower-3620:~/ansible$ ansible-playbook 08-mariadb-config.yml 
+
+PLAY [Install Mariadb] ***************************************************************************************************************************************************
+
+TASK [Gathering Facts] ***************************************************************************************************************************************************
+ok: [dbserver]
+
+TASK [Ensure MariaDB-server is installed] ********************************************************************************************************************************
+ok: [dbserver]
+
+TASK [Ensure python3-PYMySQL is present on the db-server] ****************************************************************************************************************
+changed: [dbserver]
+
+TASK [Create a new database with name webappdb] **************************************************************************************************************************
+changed: [dbserver]
+
+TASK [Create a new user with name webappuser] ****************************************************************************************************************************
+[WARNING]: Option column_case_sensitive is not provided. The default is now false, so the column's name will be uppercased. The default will be changed to true in
+community.mysql 4.0.0.
+changed: [dbserver]
+
+TASK [Ensure MariaDB-server is started] **********************************************************************************************************************************
+ok: [dbserver]
+
+PLAY RECAP ***************************************************************************************************************************************************************
+dbserver                   : ok=6    changed=3    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+```

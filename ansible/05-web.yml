@@ -1,0 +1,14 @@
+---
+- name: Configure webserver for HTTPS
+  hosts: web
+  become: true
+  tasks:
+    - name: Ensure HTTPS configuration file is present
+      ansible.builtin.copy:
+        src: files/https.conf
+        dest: /etc/nginx/conf.d/https.conf
+
+    - name: Ensure nginx is restarted
+      ansible.builtin.service:
+        name: nginx
+        state: restarted

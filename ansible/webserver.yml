@@ -1,0 +1,16 @@
+---
+- name: Install a webserver
+  hosts: web
+  become: true
+  tasks:
+   - name: Ensure nginx installed
+     ansible.builtin.package:
+       name: nginx
+       state: latest
+
+   - name: Ensure nginx started at boot
+     ansible.builtin.service:
+       name: nginx
+       enabled: true
+       state: started
+

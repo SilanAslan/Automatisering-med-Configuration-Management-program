@@ -121,9 +121,19 @@ Run the exact same playbook again and study the output. What is the difference?
 
 What does the `ansible.builtin.debug` module actually do?
 
+## Svar
+
+Ansibles print som skriver ut information man ber om. Nedan var det nodnamnet som vi ville ha utskrivet.
+ansible.builtin.debug:
+  var: ansible_facts.nodename
+
 ## QUESTION B
 
 What is the variable 'ansible_facts' and where does it come from?
+
+## Svar
+
+Det är en variabel som skapas och innehåller information, som samlas under Gathering Facts, när man kör en playbook.
 
 ## QUESTION C
 
@@ -134,6 +144,20 @@ How do we now remove the software we installed through the playbook above? Make 
 playbook remove the exact same software we previously installed. Call the created
 playbook `03-uninstall-software.yml`.
 
+
+## Svar 
+
+Man får ändra state från present till absent.
+---
+- name: Uninstall all our favorite software
+  hosts: all
+  tasks:
+    - name: Ensure vim, bash-competetion, and qemu-guest-agent are uninstalled
+      become: true
+      ansible.builtin.package:
+        name: vim,bash-completion,qemu-guest-agent
+        state: absent
+
 ## BONUS QUESTION
 
 What happens when you run `ansible-playbook` with different options?
@@ -142,6 +166,13 @@ Explain what each of these options do:
 * --verbose, -vv, -vvv, -vvvv
 * --check
 * --syntax-check
+
+## Svar
+
+- --verbose (-v, -vv...): Normalt ser man bara en sammanfattning som ok eller changed när en playbook körts. Med --verbose (eller -v) blir Ansible mer "pratig" och skriver ut mer detaljer om vad den gör. Ju fler v man lägger till (t.ex. -vvv), desto mer detaljerad information får man. Det är mycket värdefullt vid felsökning, och med -vvv kan man till exempel se detaljerad information om SSH-anslutningen.
+- --check: Den här flaggan kör playbooken i ett "dry run"-läge vilket innebär att Ansible ansluter till servrarna och kontrollerar om systemets tillstånd matchar det önskade (t.ex. "behöver vim installeras?"). Men den genomför inga ändringar, utan bara rapporterar vad som skulle ha ändrats. Det är ett jittebra sätt att testa en playbook säkert.
+- --syntax-check: En kontroll om skrivfel av .yml filen så som stavning, indrag.
+--syntax-check: Det är en kontroll som läser .yml-filen för att hitta fel som stavfel, felaktiga indrag eller moduler som inte finns. Den gör inget annat än att kontrollera att själva playbook-filen är korrekt skriven.
 
 ## Study Material & Documentation
 

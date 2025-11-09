@@ -1,0 +1,39 @@
+---
+- name: Configure webserver for HTTPS
+  hosts: web
+  become: true
+  tasks:
+    - name: Ensure HTTPS configuration file is present
+      ansible.builtin.copy:
+        src: files/https.conf
+        dest: /etc/nginx/conf.d/https.conf
+      register: https_conf_result
+
+    - name: Ensure the nginx configuration is updated for example.internal
+      ansible.builtin.template:
+        src: templates/example.internal.conf.j2
+        dest: /etc/nginx/conf.d/example.internal.conf
+      register: example_internal_conf_result
+
+    - name: Ensure virtual host directory is created
+      ansible.builtin.file:
+        path: /var/www/example.internal/html/
+        state: directory
+        owner: nginx
+        group: nginx
+        mode: 0755
+        setype: httpd_sys_content_t
+
+    - name: Upload index.html to virtual host directory
+      ansible.builtin.copy:
+        src: files/index.html
+        dest: /var/www/example.internal/html/index.html
+        owner: nginx
+        group: nginx
+        mode: 0644
+
+    - name: Ensure nginx is restarted
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
+      when: https_conf_result.changed or example_internal_conf_result.changed

@@ -1,0 +1,47 @@
+---
+# Play 1: Installation and Start of the Firewall on all hosts
+- name: Ensure firewalld is installed and running on all hosts
+  hosts: all
+  become: true
+  tasks:
+    - name: Install firewalld and dependencies
+      ansible.builtin.package:
+        name:
+          - firewalld
+          - python3-firewall
+        state: present
+
+    - name: Enable and start firewalld
+      ansible.builtin.service:
+        name: firewalld
+        enabled: true
+        state: started
+
+# Play2: Configure HTTP/HTTPS rules for Webservers
+- name: Configure HTTP/HTTPS on Webservers
+  hosts: web
+  become: true
+  tasks:
+    - name: Open HTTP and HTTPS permanently in the Public Zone
+      ansible.posix.firewalld:
+        service: "{{ item }}" # Add both services in one loop
+        permanent: true
+        state: enabled
+        immediate: true
+      loop:
+        - http
+        - https
+
+
+# Play 3: Configure MySQL Rule for Database Servers
+- name: Configure MySQL on Database Servers
+  hosts: db
+  become: true
+  tasks:
+    - name: Open MySQL permanently in the Public Zone
+      ansible.posix.firewalld:
+        service: mysql
+        permanent: true
+        state: enabled
+        zone: public
+        immediate: true

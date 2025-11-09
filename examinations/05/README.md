@@ -73,8 +73,47 @@ The output from the playbook run contains something that looks suspiciously like
 a number of keys and values that come from the output of the Ansible module.
 
 What does the output look like the first time you run this playbook?
-
 What does the output look like the second time you run this playbook?
+
+## Svar 
+Första körningen visar changed: [webserver] => {"changed": true under Task-delen samt ok=2, changed=1 under Play Recap. 
+Andra gången den körs är changed: false under Task och noll under Play Recap. 
+Detta är idempotens. Modulen ansible.builtin.copy kopierar endast om filen saknas. Om filen finns på sökvägen med rätt innehåll gör den ingenting och rapporterar ok.
+
+Output:
+Första körningen:
+```
+shilan@shilan-Precision-Tower-3620:~/ansible$ ansible-playbook 05-web.yml -v
+Using /home/shilan/ansible/ansible.cfg as config file
+
+PLAY [Configure webserver for HTTPS] ********************************************************************************
+
+TASK [Gathering Facts] **********************************************************************************************
+ok: [webserver]
+
+TASK [Ensure HTTPS configuration file is present] *******************************************************************
+changed: [webserver] => {"changed": true, "checksum": "4928f5d40694d15bf3e276596d47b8fc75544d59", "dest": "/etc/nginx/conf.d/https.conf", "gid": 0, "group": "root", "md5sum": "a3bb0c727d3e156afa3a11d78b406c83", "mode": "0644", "owner": "root", "secontext": "system_u:object_r:httpd_config_t:s0", "size": 465, "src": "/home/deploy/.ansible/tmp/ansible-tmp-1761863701.4745727-62142-42304589688454/source", "state": "file", "uid": 0}
+
+PLAY RECAP **********************************************************************************************************
+webserver                  : ok=2    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+```
+
+Andra körningen:
+```
+shilan@shilan-Precision-Tower-3620:~/ansible$ ansible-playbook 05-web.yml -v
+Using /home/shilan/ansible/ansible.cfg as config file
+
+PLAY [Configure webserver for HTTPS] ********************************************************************************
+
+TASK [Gathering Facts] **********************************************************************************************
+ok: [webserver]
+
+TASK [Ensure HTTPS configuration file is present] *******************************************************************
+ok: [webserver] => {"changed": false, "checksum": "4928f5d40694d15bf3e276596d47b8fc75544d59", "dest": "/etc/nginx/conf.d/https.conf", "gid": 0, "group": "root", "mode": "0644", "owner": "root", "path": "/etc/nginx/conf.d/https.conf", "secontext": "system_u:object_r:httpd_config_t:s0", "size": 465, "state": "file", "uid": 0}
+
+PLAY RECAP **********************************************************************************************************
+webserver                  : ok=2    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+```
 
 # QUESTION B
 
@@ -114,12 +153,51 @@ Again, these addresses are just examples, make sure you use the IP of the actual
 Note also that `curl` needs the `--insecure` option to establish a connection to a HTTPS server with
 a self signed certificate.
 
+
+## Svar
+Hela 05-web.yml inklusive tasken för restart nginx
+
+```                                                            
+---
+- name: Configure webserver for HTTPS
+  hosts: web
+  become: true
+  tasks:
+    - name: Ensure HTTPS configuration file is present
+      ansible.builtin.copy:
+        src: files/https.conf
+        dest: /etc/nginx/conf.d/https.conf
+
+    - name: Ensure nginx is restarted
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
+```
+Innan jag lade till den andra tasken misslyckades curl till port 443:
+```
+shilan@shilan-Precision-Tower-3620:~/ansible$ curl https://192.168.121.78
+curl: (7) Failed to connect to 192.168.121.78 port 443 after 0 ms: Couldn't connect to server
+```
+
+Efter att playbooken kördes med den nya tasken, lyckades både testerna:
+
+- HTTP (port 80): curl http://192.168.121.78 returnerade HTML (bekräftar att HTTP fortfarande fungerar).
+- HTTPS (port 443): curl --insecure https://191.168.121.78 returnerade HTML vilket bekräftar att den nya HTTPS-tjänsten nu körs.
+
 # QUESTION C
 
 What is the disadvantage of having a task that _always_ makes sure a service is restarted, even if there is
 no configuration change?
 
+## Svar
+
+Nackdelen med att en task som tvingar fram en omstart är att det orsakar onödigt avbrott i tjänsten, även om konfigurationen inte har ändrats. Webservern svarar inte på anslutningar och det kan störa pågående transaktioner.
+
 # BONUS QUESTION
 
 There are at least two _other_ modules, in addition to the `ansible.builtin.service` module that can restart
 a `systemd` service with Ansible. Which modules are they?
+
+## Svar
+
+ansible.builtin.command och ansible.builtin.shell

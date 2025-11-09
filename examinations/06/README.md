@@ -119,6 +119,34 @@ HINTS:
   also set the correct SELinux security context type on the directory and files. The context in question
   in this case should be `httpd_sys_content_t` for the `/var/www/example.internal/html/` directory.
 
+## Svar
+```
+shilan@shilan-Precision-Tower-3620:~/ansible$ ansible-playbook 06-web.yml
+
+PLAY [Configure webserver for HTTPS] ***************************************************************************************************
+
+TASK [Gathering Facts] *****************************************************************************************************************
+ok: [webserver]
+
+TASK [Ensure HTTPS configuration file is present] **************************************************************************************
+ok: [webserver]
+
+TASK [Ensure the nginx configuration is updated for example.internal] ******************************************************************
+ok: [webserver]
+
+TASK [Ensure virtual host directory is created] ****************************************************************************************
+changed: [webserver]
+
+TASK [Uploud index.html to virtual host directory] *************************************************************************************
+changed: [webserver]
+
+TASK [Ensure nginx is restarted] *******************************************************************************************************
+changed: [webserver]
+
+PLAY RECAP *****************************************************************************************************************************
+webserver                  : ok=6    changed=3    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+```
+
 # QUESTION B
 
 To each of the tasks that change configuration files in the webserver, add a `register: [variable_name]`.
@@ -164,8 +192,81 @@ the tasks has had any change.
 See https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_conditionals.html#basic-conditionals-with-when
 
 There are several ways to accomplish this, and there is no _best_ way to do this with what we've done so far.
-
 Is this a good way to handle these types of conditionals? What do you think?
+
+## Svar
+
+Ja, för den här specifika playbooken fungerar den mycket bra. Att spara ändringarna för .conf-filer i en variabel och lägga villkor på omstarsuppgiften för att köra den endast vid ändring löser problemet med onödiga omstarter. Som man kan se nedan så skippar Ansible omstart om ingen ändring har skett. Nackdelen är dock att when-villkoret skulle blir långt om det var flera tasks.
+
+06-web.yml
+```
+---
+- name: Configure webserver for HTTPS
+  hosts: web
+  become: true
+  tasks:
+    - name: Ensure HTTPS configuration file is present
+      ansible.builtin.copy:
+        src: files/https.conf
+        dest: /etc/nginx/conf.d/https.conf
+      register: https_conf_result
+
+    - name: Ensure the nginx configuration is updated for example.internal
+      ansible.builtin.copy:
+        src: files/example.internal.conf
+        dest: /etc/nginx/conf.d/example.internal.conf
+      register: example_internal_conf_result
+
+    - name: Ensure virtual host directory is created
+      ansible.builtin.file:
+        path: /var/www/example.internal/html/    # Nginx-konfigurationsfil (Virtual Host) letar efter innehåll just här
+        state: directory
+        owner: nginx   # nginx körs som användaren nginx på servern som måste äga för att kunna läsa
+        group: nginx
+        mode: 0755
+        setype: httpd_sys_content_t  # SELinux blockerar Nginx att komma åt filer trots rättigheter. Denna rad förhindrar blockeringen
+
+    - name: Upload index.html to virtual host directory
+      ansible.builtin.copy:
+        src: files/index.html
+        dest: /var/www/example.internal/html/index.html
+        owner: nginx   # Undivika Linux standart beteende att ge rättigheten till användaren (deploy) som skapar filen eller till root(pga. become: true)
+        group: nginx
+        mode: 0644
+
+    - name: Ensure nginx is restarted
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
+      when: https_conf_result.changed or example_internal_conf_result.changed
+```
+Här ser vi att den skippade omstart pga. villkoren:
+```
+shilan@shilan-Precision-Tower-3620:~/ansible$ ansible-playbook 06-web.yml
+
+PLAY [Configure webserver for HTTPS] *************************************************************************************************************
+
+TASK [Gathering Facts] ***************************************************************************************************************************
+ok: [webserver]
+
+TASK [Ensure HTTPS configuration file is present] ************************************************************************************************
+ok: [webserver]
+
+TASK [Ensure the nginx configuration is updated for example.internal] ****************************************************************************
+ok: [webserver]
+
+TASK [Ensure virtual host directory is created] **************************************************************************************************
+ok: [webserver]
+
+TASK [Upload index.html to virtual host directory] ***********************************************************************************************
+ok: [webserver]
+
+TASK [Ensure nginx is restarted] *****************************************************************************************************************
+skipping: [webserver]
+
+PLAY RECAP ***************************************************************************************************************************************
+webserver                  : ok=5    changed=0    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0   
+```
 
 # BONUS QUESTION
 
@@ -177,3 +278,9 @@ would you like the flow to work?
 
 Describe in simple terms what your preferred task flow would look like, not necessarily implemented in
 Ansible, but in general terms.
+
+## Svar
+Ett flöde för att minimera nedtid är att se till att tjänsten bara startas om en enda gång, efter att alla tasks är klara.
+
+Som vi såg ovan kan man lösa det manuellt med ett when-villkor i slutet av playbooken, men nackdelen är att det villkoret blir väldigt långt och svårt att underhålla om många tasks är inblandade.
+Ett bättre och mer automatiskt flöde kan man skapa med handlers: att varje task som ändrar en fil istället skickar en "signal" (notifiering). Systemet samlar upp alla signaler och kör omstarten automatiskt en enda gång i slutet, om minst en signal har skickats. 

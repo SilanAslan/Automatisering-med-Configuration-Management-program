@@ -1,0 +1,17 @@
+---
+- name: Update deploy sudo rules
+  hosts: all
+  become: true
+  tasks:
+    - name: Set login password for deploy user
+      ansible.builtin.user:
+        name: deploy
+        password: $6$0omElwfmc1OenL/g$0HacTM0O2QNsuq8.8L3zDL4IwhonY9/LRnslLbvX6jKNRqAAe9yGXqqNlqoijsr.W5x3euyB8fFRImI1i3FWi/
+        update_password: always
+
+    - name: Replace NOPASSWD rule for deploy
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers.d/deploy
+        regexp: '^deploy ALL=(ALL) NOPASSWD: ALL'
+        line: 'deploy ALL=(ALL) ALL'
+        validate: 'visudo -cf %s' #Ansible skapar temporärtkopia, kör validate raden mot det temporära innan ändringen'

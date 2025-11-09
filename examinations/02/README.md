@@ -112,9 +112,17 @@ incompatibilities.
 
 What happens if you run `ansible-inventory --list` in the directory you created above?
 
+## Svar
+
+Med detta kommando får jag hela inventariet, inklusive SSH-nycklar samt användarnamn, i JSON-format. 
+
 ## QUESTION B
 
 What happens if you run `ansible-inventory --graph` in the directory you created above?
+
+## Svar
+
+Till skillnad från --list, visar detta kommando inventariet som ett kortfattat träddiagram, för en snabb överblick över grupper och hosts.
 
 ## QUESTION C
 
@@ -131,6 +139,10 @@ Now run:
 Study the output of this command.
 
 What does the `ansible_connection=local` part mean?
+
+## Svar
+
+Standardmetoden för Ansible är att ansluta via SSH men ansible_connection=local talar om för Ansible att köra ping lokalt via bash. Inte försöka att SSH:a till maskinen där den faktiskt är.
 
 ## BONUS QUESTION
 
@@ -153,3 +165,25 @@ In your Ansible working directory where the `ansible.cfg' is, run
 You should get a pager displaying all available configuration values. How does it differ
 from when you run the same command in your usual home directory?
 
+## Svar
+
+I ansible-katalogen:
+CONFIG_FILE() = **/home/shilan/ansible/ansible.cfg**
+
+DEFAULT_HOST_LIST(/home/shilan/ansible/ansible.cfg) = ['/home/shilan/ansible/hosts']
+
+HOST_KEY_CHECKING(/home/shilan/ansible/ansible.cfg) = **False**
+
+I min hemkatalog:
+CONFIG_FILE() = **None**
+
+DEFAULT_HOST_LIST(default) = ['/etc/ansible/hosts']
+
+HOST_KEY_CHECKING(default) = **True**
+
+
+#### Skillnaden:
+
+Ansible letar efter en ansible.cfg-fil i aktuell katalog, där man kör kommandot ifrån först. Om den hittar en, får den filen högst prioritet. Dess inställningar läses in och skriver över standardinställningarna. Annars läser den in de inbyggda standardvärden.
+Eftersom jag hade en ansible.cfg i min ansible mapp, skrev de över de standardinställningarna medan i min hemkatalog, där jag saknade en ansible.cgf-fil, var det standardärden som lästes in.
+Tack vare detta kan man ha olika inställningar för olika projekt.

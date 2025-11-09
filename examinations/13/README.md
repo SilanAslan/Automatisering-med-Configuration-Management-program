@@ -21,3 +21,95 @@ Also note the difference between `restarted` and `reloaded` in the [ansible.buil
 
 In order for `nginx` to pick up any configuration changes, it's enough to do a `reload` instead of
 a full `restart`.
+
+### Svar
+För att säkerställa att Nginx endast läser in ny konfiguration när en fil faktiskt har ändrats, och undvika onödiga omstarter, skapades en handler som heter reload nginx i handlers/main.yml. Den använder kommandot reload istället för restart, vilket är enklare och mer resurssnålt.
+
+- ~/ansible/roles/webserver/handlers main.yml
+```
+---
+# handlers file for webserver
+- name: reload nginx
+  ansible.builtin.service:
+    name: nginx
+    state: reload
+```
+
+Tasks som hanterar nginx-konfigurationsfiler (https.conf och example.internal.conf.j2) fick raden notify: reload nginx för att säga till handlern vid ändring.
+
+Den gamla lösningen med register och when: för att bestämma när nginx ska starta om togs bort, eftersom den inte behövs längre.
+
+
+- ~/ansible/roles/webserver/tasks main.yml
+
+```
+---
+# tasks file for webserver
+
+- name: Ensure nginx installed
+  ansible.builtin.package:
+    name: nginx
+    state: latest
+
+- name: Ensure the /etc/pki/nginx directory exists
+  ansible.builtin.file:
+    path: /etc/pki/nginx
+    state: directory
+    mode: "0755"
+    owner: root
+
+- name: Ensure we have a /etc/pki/nginx/private directory
+  ansible.builtin.file:
+    path: /etc/pki/nginx/private
+    state: directory
+    mode: "0700"
+    owner: root
+
+- name: Ensure we have necessary software installed
+  ansible.builtin.package:
+    name: python3-cryptography
+    state: present
+
+- name: Ensure we have a private key for our certificate
+  community.crypto.openssl_privatekey:
+    path: /etc/pki/nginx/private/server.key
+
+- name: Create a self-signed certificate
+  community.crypto.x509_certificate:
+    path: /etc/pki/nginx/server.crt
+    privatekey_path: /etc/pki/nginx/private/server.key
+    provider: selfsigned
+
+- name: Ensure HTTPS configuration file is present
+  ansible.builtin.copy:
+    src: https.conf
+    dest: /etc/nginx/conf.d/https.conf
+  notify:
+    - reload nginx
+
+- name: Ensure the nginx configuration is updated for example.internal
+  ansible.builtin.template:
+    src: example.internal.conf.j2
+    dest: /etc/nginx/conf.d/example.internal.conf
+  notify:
+    - reload nginx
+
+- name: Ensure virtual host directory is created
+  ansible.builtin.file:
+    path: /var/www/example.internal/html/
+    state: directory
+    owner: nginx
+    group: nginx
+    mode: 0644
+
+- name: Create IT department users and add to groups
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    groups: "{{ item.groups }}"
+    state: present
+  loop:
+    - { name: 'alovelace', groups: 'wheel,video,audio' }
+    - { name: 'aturing', groups: 'tape' }
+    - { name: 'edijkstra', groups: 'tcpdump' }
+    - { name: 'ghopper', groups: 'wheel,audio' }
+```

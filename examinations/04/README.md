@@ -53,12 +53,28 @@ module.
 
 How can we make the web server start with an addition of just one line to the playbook above?
 
+## Svar
+
+enabled: true ser till att tjänsten startas vid omstart men för att starta tjänsten direkt bör state: started läggas till under enabled raden i uppgiften:
+```
+   - name: Ensure nginx started at boot
+     ansible.builtin.service:
+       name: nginx
+       enabled: true
+       state: started
+```
+
 # QUESTION B
 
 You make have noted that the `become: true` statement has moved from a specific task to the beginning
 of the playbook, and is on the same indentation level as `tasks:`.
 
 What does this accomplish?
+
+## Svar
+
+Att installera paket och starta tjänster kräver sudo-rättigheter.
+När become: true placeras högst upp i sektionen gäller den för alla uppgifter i den "playen", vilket gör att man inte behöver skriva become: true i varje enskild uppgift som kräver sudo-rättigheter.
 
 # QUESTION C
 
@@ -72,8 +88,15 @@ log in to the machine and make sure that there are no `nginx` processes running.
 
 Why did we change the order of the tasks in the `04-uninstall-webserver.yml` playbook?
 
+## Svar
+
+När man har avinstallerat nginx i första tasken med state: absent, raderas alla filer. När ansible.builtin.service-modulen försöker att stoppa tjänsten efteråt med state: stopped kommer den att misslyckas. 
+
 # BONUS QUESTION
 
 Consider the output from the tasks above, and what we were actually doing on the machine.
 
 What is a good naming convention for tasks? (What SHOULD we write in the `name:` field`?)
+
+## Svar
+Ensure nginx uninstalled: det beskriver resultatet som vi vill uppnå eller vad vi vill åstådkomma.
